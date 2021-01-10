@@ -1,0 +1,35 @@
+version: '3.0'
+
+services:
+
+  mongo:
+    image: mongo
+    container_name: mongo
+    volumes:
+      - "./db:/data/db"
+    ports:
+     - 27018:27017
+    networks:
+      - backend
+
+  pyapp:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    container_name: recommendations
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - FLASK_APP=run.py
+      - FLASK_ENV=development
+    volumes:
+      - ".:/var/www/app"
+    ports:
+      - 5000:5000
+    networks:
+      - backend
+    depends_on:
+      - mongo
+
+networks:
+    backend:
+        driver: bridge
