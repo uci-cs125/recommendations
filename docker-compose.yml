@@ -2,6 +2,7 @@ version: '3.0'
 
 services:
 
+  # MongoDb Database
   mongo:
     image: mongo
     container_name: mongo
@@ -12,6 +13,8 @@ services:
     networks:
       - backend
 
+  
+  # Python Flask API
   pyapp:
     build:
       dockerfile: Dockerfile
