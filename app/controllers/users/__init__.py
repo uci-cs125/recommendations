@@ -1,8 +1,11 @@
 import pymongo
+from app.utils.db import mongoClient
+
 ## Set up the users database connection and ensure the username field is indexed uniquely
-mongoClient = pymongo.MongoClient('mongo:27017')
 usersClient = mongoClient.users["users"]
 usersClient.create_index(
     [("username", pymongo.DESCENDING)],
     unique=True
 )
+
+authClient = mongoClient.users["authStore"]
