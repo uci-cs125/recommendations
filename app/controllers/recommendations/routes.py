@@ -17,6 +17,9 @@ recommendation = api.model('recommendation', {
 })
 
 YELP_TOKEN = 'imY5RtK9SzacR1alCl1-Z2n9LR-jE5bOy2rZ51rgeln39AI3rOIO5_mWwfEC9rOIsyuDN4R26xAkEuYcOTRyJDNbP3c7G8Gw_YC-P3jrBN7U3e-rdi2kypOF2WsGYHYx'
+
+
+
 @api.route('/')
 class RecommendationResource(Resource):
     @api.doc('list_recommendations', params={
