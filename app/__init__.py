@@ -1,6 +1,5 @@
 from flask_restplus import Api
 
-from .controllers.users.routes import api as usersAPI
 from .controllers.recommendations.routes import api as recsAPI
 
 api = Api(
