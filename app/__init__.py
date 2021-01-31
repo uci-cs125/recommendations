@@ -1,4 +1,5 @@
 from flask_restplus import Api
+import os
 
 from .controllers.recommendations.routes import api as recsAPI
 

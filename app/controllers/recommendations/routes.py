@@ -4,7 +4,6 @@ from bson.json_util import dumps, loads
 from bson import json_util
 from app.utils.encoder import JSONEncoder
 from app.utils.response import craftResp
-from . import recsClient
 import json
 import pymongo
 import requests
@@ -27,6 +26,7 @@ class RecommendationResource(Resource):
             'categories': 'the search categories'
         })
     def get(self):
+        r = None
         try:
             latitude = request.args.get('latitude')
             longitude = request.args.get('longitude')
@@ -39,15 +39,19 @@ class RecommendationResource(Resource):
             r = requests.get(url = url, headers = headers)
             return craftResp(r.json(), request, 200)
         except:
-            return craftResp('Error fetching recommendations', request, 400)
+            return craftResp('Error fetching recommendations: ', r, 400)
 
 
     @api.doc('create_recommendation', body=recommendation)
     def post(self):
         body = request.get_json()
-        try:
-            result = recsClient.insert_one(body)
-            if result.acknowledged:
-                return craftResp(body, request, 200)
-        except pymongo.errors.DuplicateKeyError:
-            return craftResp("Cannot create record: duplicate key exists.", request, 400)
+        # try:
+        # result = recsClient.insert_one(body)
+        print("json body:", body)
+        # print("recs client:", recsClient)
+        # if result.acknowledged:
+        #     return craftResp(body, request, 200)
+        # except pymongo.errors.DuplicateKeyError:
+        #     return craftResp("Cannot create record: duplicate key exists.", request, 400)
+        # except:
+        #     return craftResp("Unknown state:", request, 400)
