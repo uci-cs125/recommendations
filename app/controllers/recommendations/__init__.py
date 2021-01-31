@@ -17,6 +17,7 @@ def ingestData():
 
         r = requests.get(url = url, headers = headers)
         if r.status_code != 200:
+            print("Skipping unsuccessful status code:", r.status_code)
             continue
 
         print("Ingesting data: ",r.json())
