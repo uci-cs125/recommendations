@@ -2,11 +2,12 @@ from app.utils.db import mongoClient
 import requests
 import os
 
+recipesCollection = mongoClient["recipes-" + os.getenv("ENVIRONMENT", "dev")]["recipes"]
+
 # Spoonacular Data Ingestion
 def ingestData():
     API_TOKEN = "31badbba838549c59b1ca8f72c92d501"
 
-    recipesClient = mongoClient.recipes["recipes-" + os.getenv("ENVIRONMENT", "dev")]
     recipe_id = 716430
     for i in range(0, 2):
         url = 'https://api.spoonacular.com/recipes/' + str(recipe_id) + '/information?apiKey=' + API_TOKEN + '&includeNutrition=true'
@@ -18,7 +19,7 @@ def ingestData():
             continue
 
         print("Ingesting data: ",r.json())
-        recipesClient.insert_one(r.json())
+        recipesCollection.insert_one(r.json())
         recipe_id = recipe_id+1
 
 # ingestData() 
