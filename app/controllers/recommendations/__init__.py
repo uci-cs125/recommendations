@@ -1,5 +1,5 @@
 from app.utils.db import mongoClient
-
+import requests
 ## Set up the recommendations database connection
 recsClient = mongoClient.recommendations["recommendations"]
 
