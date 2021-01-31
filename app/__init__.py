@@ -8,6 +8,6 @@ api = Api(
     description='A simple API for recommendations and users',
 )
 
-api.add_namespace(usersAPI)
+# api.add_namespace(usersAPI)
 api.add_namespace(recsAPI)
 

@@ -24,4 +24,4 @@ def ingestData():
         recipesClient.insert_one(r.json())
         recipe_id = recipe_id+1
 
-ingestData() 
+# ingestData() 
