@@ -1,4 +1,4 @@
-# Recommendations Engine
+# Recommendations Engine - Staging
 
 ## Setup
 1. Start the MongoDB and flask containers in detached mode: `docker-compose up -d`
