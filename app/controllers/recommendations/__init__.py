@@ -11,7 +11,7 @@ def ingestData():
 
     recipesClient = mongoClient.recipes["recipes"]
     recipe_id = 716430
-    for i in range(0, 100):
+    for i in range(0, 5):
         url = 'https://api.spoonacular.com/recipes/' + str(recipe_id) + '/information?apiKey=' + API_TOKEN + '&includeNutrition=true'
         headers = {'Authorization': 'Bearer ' + API_TOKEN}
 
