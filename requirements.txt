@@ -47,7 +47,6 @@ pipenv==2020.11.15
 pluggy==0.13.0
 Protego==0.1.16
 protobuf==3.14.0
-psycopg2-binary==2.8.3
 py==1.8.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
