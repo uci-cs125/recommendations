@@ -22,9 +22,8 @@ class RecommendationResource(Resource):
     @api.doc('list_recommendations')
     def get(self):
         try:
-            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 20 }]) # only return the first 20 elements
+            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 1 }]) # only return the first 20 elements
             data = [doc for doc in result]
-            print("data:", data)
             return craftResp(data, request, 200)
         except:
             return craftResp('Error fetching recommendation list', request, 400)
