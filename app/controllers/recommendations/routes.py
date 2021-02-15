@@ -17,9 +17,13 @@ recommendation = api.model('recommendation', {
     'goal': fields.Integer(required=True, description='The targeted goal by the recommendation')
 })
 
+parser = api.parser()
+parser.add_argument('hour', type=int, required=True)
+
 @api.route('/')
 class RecommendationResource(Resource):
     @api.doc('list_recommendations')
+    @api.expect(parser)
     def get(self):
         try:
             result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 5 }]) # only return the first 20 elements
@@ -27,7 +31,6 @@ class RecommendationResource(Resource):
             return craftResp(data, request, 200)
         except:
             return craftResp('Error fetching recommendation list', request, 400)
-
 
     @api.doc('create_recommendation', body=recommendation)
     def post(self):
