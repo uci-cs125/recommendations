@@ -19,16 +19,25 @@ recommendation = api.model('recommendation', {
 
 parser = api.parser()
 parser.add_argument('hour', type=int, required=True)
-args = parser.parse_args()
-
 @api.route('/')
 class RecommendationResource(Resource):
     @api.doc('list_recommendations')
     @api.expect(parser)
     def get(self):
+        args = parser.parse_args()
+        currHour = int(args['hour'])
+        mealType = None
+        if currHour >= 11 and currHour <= 16:
+            mealType = "brunch"
+        elif currHour < 11:
+            mealType = "breakfast"
+        elif currHour > 16:
+            mealType = "dinner"
+
+        # mongo > db.find( { dishTypes: { $all: [mealType] } } )
         try:
-            print("Fetching recommendations for current hour:", args['hour'])
-            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 5 }]) # only return the first 20 elements
+            print("Fetching recommendations for meal type:", mealType)
+            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$match': { 'dishTypes': { '$all': [mealType]}}}, { '$limit' : 20 }, ]) # only return the first 20 elements
             data = [doc for doc in result]
             return craftResp(data, request, 200)
         except:
