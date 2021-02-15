@@ -19,6 +19,7 @@ recommendation = api.model('recommendation', {
 
 parser = api.parser()
 parser.add_argument('hour', type=int, required=True)
+args = parser.parse_args()
 
 @api.route('/')
 class RecommendationResource(Resource):
@@ -26,6 +27,7 @@ class RecommendationResource(Resource):
     @api.expect(parser)
     def get(self):
         try:
+            print("Fetching recommendations for current hour:", args['hour'])
             result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 5 }]) # only return the first 20 elements
             data = [doc for doc in result]
             return craftResp(data, request, 200)
