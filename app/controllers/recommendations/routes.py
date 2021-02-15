@@ -22,7 +22,7 @@ class RecommendationResource(Resource):
     @api.doc('list_recommendations')
     def get(self):
         try:
-            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 1 }]) # only return the first 20 elements
+            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$limit' : 5 }]) # only return the first 20 elements
             data = [doc for doc in result]
             return craftResp(data, request, 200)
         except:
