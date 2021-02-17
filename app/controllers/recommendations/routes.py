@@ -39,9 +39,18 @@ class RecommendationResource(Resource):
         # mongo > db.find( { dishTypes: { $all: ["dinner"] } } )
         try:
             print("Fetching recommendations for meal type:", mealType)
-            rankingResult = rank({"context": {"likes": [602443, 324412, 123123], "caloriesBurned": 483, "calorieGoal": 3000}})
 
-            result = recsCollection.aggregate([{'$addFields': {"id": '$_id.oid'}}, { '$match': { 'dishTypes': { '$all': [mealType]}}}, { '$limit' : 20 }, ]) # only return the first 20 elements
+            userContext = {
+                "context": {
+                    "likes": [766453, 640941, 123123], 
+                    "caloriesBurned": 483, 
+                    "calorieGoal": 3000
+                }
+            }
+            
+            rankingResult = rank(userContext)
+
+            result = recsCollection.aggregate([{ '$match': { 'dishTypes': { '$all': [mealType]}}}, { '$limit' : 20 }]) # only return the first 20 elements
             data = [doc for doc in result]
             return craftResp(data, request, 200)
         except:
