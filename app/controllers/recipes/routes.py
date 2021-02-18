@@ -20,6 +20,8 @@ recommendation = api.model('recipes', {
 
 parser = api.parser()
 parser.add_argument('hour', type=int, required=True)
+parser.add_argument('uid', required=True)
+
 @api.route('/')
 class RecipeResource(Resource):
     @api.doc('list_recipes')
@@ -27,15 +29,14 @@ class RecipeResource(Resource):
     def get(self):
         args = parser.parse_args()
         currHour = int(args['hour'])
+        uid = args['uid']
 
         # mongo > db.find( { dishTypes: { $all: ["dinner"] } } )
         # try:
 
         payload = {
             "context": {
-                "likes": [766453, 640941, 123123], 
-                "caloriesBurned": 483, 
-                "calorieGoal": 3000,
+                "uid": uid,
                 "currHour": currHour
             }
         }

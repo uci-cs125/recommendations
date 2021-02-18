@@ -3,23 +3,36 @@ import requests
 import os
 
 recipesCollection = mongoClient["recommendations"]["recipes"]
+likedCollection = mongoClient["recommendations"]["likes"]
 
-# Spoonacular Data Ingestion
-# def ingestData():
-#     API_TOKEN = "31badbba838549c59b1ca8f72c92d501"
-#     headers = {'Authorization': 'Bearer ' + API_TOKEN}
+def populateTasteVectorField():
+    API_TOKEN = "31badbba838549c59b1ca8f72c92d501"
+    headers = {'Authorization': 'Bearer ' + API_TOKEN}
 
-#     offset = 0
-#     for i in range(0, 11):
-#         url = 'https://api.spoonacular.com/recipes/complexSearch?includeNutrition=true&number=1000&fillIngredients=true&addRecipeInformation=true&addRecipeNutrition=true&fillIngredients=true&includeNutrition=true&number=100&offset=' + str(offset) + '&apiKey=' + API_TOKEN
-#         print("url:", url)
-#         r = requests.get(url = url, headers = headers)
-#         if r.status_code != 200:
-#             print("Skipping unsuccessful status code:", r.status_code)
-#             continue
+    result = recipesCollection.aggregate([{
+            '$project': {
+                'id': 1
+                }
+            }
+        ])
+    recipes = [r for r in result]
 
-#         offset = offset + 100 ### 100 results at a time, store them all in the mongo DB, then increment to the next 100 results :D
-#         result = recsCollection.insert_many(r.json()['results'])
-#         print("Result:", result)
-
-# ingestData() 
+    for recipe in recipes:
+        print("getting taste profile for recipe:", recipe)
+        url = 'https://api.spoonacular.com/recipes/' + str(recipe['id']) + '/tasteWidget.json' + '?apiKey=' + API_TOKEN
+        print('url:', url)
+        r = requests.get(url = url, headers = headers)
+        if r.status_code != 200:
+            print("Skipping unsuccessful status code:", r.status_code)
+            continue
+        print(r.json())
+        recipesCollection.update({
+                'id': recipe['id']
+            },
+            { 
+                '$set': {
+                    'tasteProfile': r.json(),
+                }
+            }
+        )
+# populateTasteVectorField()

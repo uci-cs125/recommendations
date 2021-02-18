@@ -4,7 +4,7 @@ import os
 mongoClient = None
 # Get Heroku MONGO_URL Config Var, else: use default of mongo:27017
 try:
-    addr = os.getenv("MONGO_URL", "mongodb+srv://developer:developer@recommendations.g25bt.mongodb.net/<dbname>?retryWrites=true&w=majority")
+    addr = os.getenv("MONGO_URL", "mongodb+srv://developer:developer@recommendations.g25bt.mongodb.net/?retryWrites=true&w=majority")
     mongoClient = pymongo.MongoClient(addr)
     print("Initialized data base connection with url: ", addr)
     print("--------------------------------------------------------")
