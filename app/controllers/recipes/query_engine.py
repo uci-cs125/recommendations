@@ -12,7 +12,7 @@ class QueryEngine():
             mealType = "breakfast"
         elif context.currHour > 16:
             mealType = "dinner"
-        result = recipesCollection.aggregate([{ '$match': { 'dishTypes': { '$all': [mealType]}}}, { '$limit' : 20 }]) # only return the first 20 elements
+        result = recipesCollection.aggregate([{ '$match': { 'dishTypes': { '$all': [mealType]}}}, {'$project': {'title': 1, 'id': 1, 'nutrition': 1, 'dishTypes': 1, 'diets': 1, 'cuisineTypes': 1, 'vegetarian': 1}}, { '$limit' : 20 }]) # only return the first 20 elements
         print("result:", result)
         data = [doc for doc in result]
         return data
