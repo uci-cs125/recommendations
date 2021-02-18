@@ -36,7 +36,7 @@ class RecipeResource(Resource):
                 "likes": [766453, 640941, 123123], 
                 "caloriesBurned": 483, 
                 "calorieGoal": 3000,
-                "currHour": 15
+                "currHour": currHour
             }
         }
         
