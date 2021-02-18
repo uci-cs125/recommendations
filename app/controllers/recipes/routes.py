@@ -4,16 +4,16 @@ from bson.json_util import dumps, loads
 from bson import json_util
 from app.utils.encoder import JSONEncoder
 from app.utils.response import craftResp
-from . import recsCollection
-from .ranking import rank
-
+from . import recipesCollection
 import json
+from .query_engine import QueryEngine
 import pymongo
 import requests
 
-api = Namespace('recommendations', description='recommendation related operations')
+queryEngine = QueryEngine()
+api = Namespace('recipes', description='recommendation related operations')
 
-recommendation = api.model('recommendation', {
+recommendation = api.model('recipes', {
     'message': fields.String(required=True, description='The message of the recommendation'),
     'goal': fields.Integer(required=True, description='The targeted goal by the recommendation')
 })
@@ -21,40 +21,29 @@ recommendation = api.model('recommendation', {
 parser = api.parser()
 parser.add_argument('hour', type=int, required=True)
 @api.route('/')
-class RecommendationResource(Resource):
-    @api.doc('list_recommendations')
+class RecipeResource(Resource):
+    @api.doc('list_recipes')
     @api.expect(parser)
     def get(self):
         args = parser.parse_args()
         currHour = int(args['hour'])
 
-        mealType = None
-        if currHour >= 11 and currHour <= 16:
-            mealType = "brunch"
-        elif currHour < 11:
-            mealType = "breakfast"
-        elif currHour > 16:
-            mealType = "dinner"
-
         # mongo > db.find( { dishTypes: { $all: ["dinner"] } } )
-        try:
-            print("Fetching recommendations for meal type:", mealType)
+        # try:
 
-            userContext = {
-                "context": {
-                    "likes": [766453, 640941, 123123], 
-                    "caloriesBurned": 483, 
-                    "calorieGoal": 3000
-                }
+        payload = {
+            "context": {
+                "likes": [766453, 640941, 123123], 
+                "caloriesBurned": 483, 
+                "calorieGoal": 3000,
+                "currHour": 15
             }
-            
-            rankingResult = rank(userContext)
-
-            result = recsCollection.aggregate([{ '$match': { 'dishTypes': { '$all': [mealType]}}}, { '$limit' : 20 }]) # only return the first 20 elements
-            data = [doc for doc in result]
-            return craftResp(data, request, 200)
-        except:
-            return craftResp('Error fetching recommendation list', request, 400)
+        }
+        
+        results = queryEngine.query(payload)
+        return craftResp(results, request, 200)
+        # except:
+            # return craftResp('Error fetching recipe list', request, 400)
 
     @api.doc('create_recommendation', body=recommendation)
     def post(self):

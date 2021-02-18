@@ -1,7 +1,8 @@
 from flask_restplus import Api
 import os
 
-from .controllers.recommendations.routes import api as recsAPI
+from .controllers.recipes.routes import api as recipesAPI
+from .controllers.likes.routes import api as likesAPI
 
 api = Api(
     title='Recommendation Engine API',
@@ -10,5 +11,5 @@ api = Api(
 )
 
 # api.add_namespace(usersAPI)
-api.add_namespace(recsAPI)
-
+api.add_namespace(recipesAPI)
+api.add_namespace(likesAPI)
