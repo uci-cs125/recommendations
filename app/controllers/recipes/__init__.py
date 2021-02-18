@@ -2,7 +2,7 @@ from app.utils.db import mongoClient
 import requests
 import os
 
-recipesCollection = mongoClient["recommendations"]["recipes"]
+recipesCollection = mongoClient["recommendations"]["recipes_filtered_for_lauras_shitty_laptop"]#["recipes"]
 likedCollection = mongoClient["recommendations"]["likes"]
 
 def populateTasteVectorField():

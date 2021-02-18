@@ -35,8 +35,32 @@ class RecipeResource(Resource):
         # try:
 
         payload = {
-            "context": {
+            "profile": {
                 "uid": uid,
+                "age": 21,
+                "sex": 1,               # 0 = male, 1 = female or other
+                "heightFeet": 5,
+                "heightInches": 7,
+                "weight": 125,
+                "averageActivity": 1,   #0 = sedentary, 1 = light exercise, 2 = moderate exercise daily, 3 = hard exercise daily, 4 = hard exercise 2+ per day
+                "goal": 2               # 0 = lose, 1 = maintain, 2 = gain
+            },
+            "context": {
+                "mealsEaten": [
+                    {
+                        "calories" : 400,
+                        "fat" : 10,
+                        "carbs" : 100,
+                        "protein" : 10,
+                    },
+                    {
+                        "calories" : 160,
+                        "fat" : 0,
+                        "carbs" : 40,
+                        "protein" : 0,
+                    }
+                ],
+                "caloriesBurned": 3000,
                 "currHour": currHour
             }
         }
