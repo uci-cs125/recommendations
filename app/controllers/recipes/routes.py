@@ -19,20 +19,17 @@ recommendation = api.model('recipes', {
 })
 
 parser = api.parser()
-parser.add_argument('hour', type=int, required=True)
-parser.add_argument('uid', required=True)
 
 @api.route('/')
 class RecipeResource(Resource):
     @api.doc('list_recipes')
     @api.expect(parser)
-    def get(self):
+    def post(self):
         args = parser.parse_args()
-        currHour = int(args['hour'])
-        uid = args['uid']
+        currHour = 19
+        uid = "bl1u5cdYmLb3TrYSFL8ub01qBiW2"
 
-        # mongo > db.find( { dishTypes: { $all: ["dinner"] } } )
-        # try:
+        body = request.get_json(force=True)
 
         payload = {
             "profile": {
@@ -64,22 +61,26 @@ class RecipeResource(Resource):
                 "currHour": currHour
             }
         }
-        
-        results = queryEngine.query(payload)
+
+        if payload["profile"] and payload["context"]:
+            mockPayload = body ## override mock data with real data from Swift frontend JSON bodys
+            print("using json body for payload!")
+
+        results = queryEngine.query(mockPayload)
         return craftResp(results, request, 200)
         # except:
             # return craftResp('Error fetching recipe list', request, 400)
 
-    @api.doc('create_recommendation', body=recommendation)
-    def post(self):
-        body = request.get_json()
-        # try:
-        # result = recsClient.insert_one(body)
-        print("json body:", body)
-        # print("recs client:", recsClient)
-        # if result.acknowledged:
-        #     return craftResp(body, request, 200)
-        # except pymongo.errors.DuplicateKeyError:
-        #     return craftResp("Cannot create record: duplicate key exists.", request, 400)
-        # except:
+    # @api.doc('create_recommendation', body=recommendation)
+    # def post(self):
+    #     body = request.get_json()
+    #     # try:
+    #     # result = recsClient.insert_one(body)
+    #     print("json body:", body)
+    #     # print("recs client:", recsClient)
+    #     # if result.acknowledged:
+    #     #     return craftResp(body, request, 200)
+    #     # except pymongo.errors.DuplicateKeyError:
+    #     #     return craftResp("Cannot create record: duplicate key exists.", request, 400)
+    #     # except:
         #     return craftResp("Unknown state:", request, 400)

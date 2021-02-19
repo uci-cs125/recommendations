@@ -11,6 +11,9 @@ class QueryEngine():
             where 'tasteScore' is the cosine similarity between
             the flavor profile of the meal and the user's liked recipes
         '''
+        # init with all zeros
+        for index, recipe in enumerate(recipes):
+            recipes[index]['tasteScore'] = 0
 
         print("Finding likes by user_id:", user_id)
         result = likedCollection.find({'user_id': user_id})
@@ -18,7 +21,8 @@ class QueryEngine():
 
         if len(likes) == 0:
             print("User does not have any likes:", user_id)
-            return []
+            return recipes
+
         total_sweetness = 0
         total_saltiness = 0
         total_sourness = 0
@@ -37,7 +41,8 @@ class QueryEngine():
             total_savoriness += tasteProfile["savoriness"]
             total_fattiness += tasteProfile["fattiness"]
             total_spiciness += tasteProfile["spiciness"]
-
+            print("user liked recipe:", tasteProfile)
+        print("Total sweetness:", total_sweetness)
         avg_sweetness = total_sweetness/len(likes)
         avg_saltiness = total_saltiness/len(likes)
         avg_sourness = total_sourness/len(likes)
@@ -58,7 +63,6 @@ class QueryEngine():
 
         ### construct recipe vector for all recipes
         recipe_vectors = []
-        recipe_scores = []
         for index, recipe in enumerate(recipes):
             if 'tasteProfile' not in recipe.keys():
                 print("Recipe is missing tasteProfile field!:", recipe)
@@ -76,10 +80,6 @@ class QueryEngine():
             vec = [sweetness, saltiness, sourness, bitterness, savoriness, fattiness, spiciness]
             similarity = 1 - spatial.distance.cosine(vec, query_vector)
             recipes[index]['tasteScore'] = similarity
-            recipe_scores.append(similarity)
-            if recipe['id'] == 655055:
-                print(f"FOUND RECIPE: {recipe['title']}")
-        #sorted_recipes = sorted(recipes, key = lambda i: i['tasteScore'],reverse=True)
         return recipes
 
     def _assemble_nutritional_rankings(self, profile, context, recipes):
@@ -138,9 +138,7 @@ class QueryEngine():
 
         ### construct recipe vector for all recipes
         recipe_vectors = []
-        recipe_scores = []
         for index, recipe in enumerate(recipes):
-            tasteProfile = recipe['tasteProfile']
 
             calories = recipe["nutrition"]['nutrients'][0]['amount']
             carbs = recipe["nutrition"]['nutrients'][1]['amount'] * 4
@@ -150,10 +148,6 @@ class QueryEngine():
             vec = [calories, carbs, protein, fat]
             similarity = 1 - spatial.distance.cosine(vec, query_vector)
             recipes[index]['nutritionalScore'] = similarity
-            recipe_scores.append(similarity)
-            if recipe['id'] == 664429:
-                print(f"FOUND RECIPE: {recipe['title']}")
-        #sorted_recipes = sorted(recipes, key = lambda i: i['nutritionalScore'],reverse=True)
         return recipes
 
     def query(self, payload):
@@ -199,8 +193,8 @@ class QueryEngine():
             ])
         recipes = [doc for doc in result]
 
-        self._assemble_nutritional_rankings(profile, context, recipes)
-        self._assemble_taste_rankings(profile["uid"], recipes)
+        recipes = self._assemble_nutritional_rankings(profile, context, recipes)
+        recipes = self._assemble_taste_rankings(profile["uid"], recipes)
         recommendations = sorted(recipes, \
                                 key = lambda i: i['nutritionalScore']*.8 + \
                                                 i['tasteScore']*.2, \
