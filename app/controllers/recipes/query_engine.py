@@ -111,6 +111,15 @@ class QueryEngine():
             goal_calories *= 1.725
         elif profile["averageActivity"] == 4:
             goal_calories *= 1.95
+
+        if profile["goal"] == 0:
+            goal_calories -= 1000
+        elif profile["goal"] == 1:
+            goal_calories -= 500
+        elif profile["goal"]== 3:
+            goal_calories += 500
+        elif profile["goal"]== 4:
+            goal_calories += 1000
         
         # carbs = 70%, protein = 20%, fat = 10%
         goal_carbs = goal_calories * .7

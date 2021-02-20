@@ -40,7 +40,7 @@ class RecipeResource(Resource):
                 "heightInches": 7,
                 "weight": 125,
                 "averageActivity": 1,   #0 = sedentary, 1 = light exercise, 2 = moderate exercise daily, 3 = hard exercise daily, 4 = hard exercise 2+ per day
-                "goal": 2               # 0 = lose, 1 = maintain, 2 = gain
+                "goal": 2               # 0 = lose 2 per week, 1 = lose 1 per week, 2 = maintain weight, 3 = gain 1 per week, 4 = gain 2 per week
             },
             "context": {
                 "mealsEaten": [
