@@ -32,6 +32,10 @@ class QueryEngine():
         total_spiciness = 0
         for like in likes:
             recipe = recipesCollection.find_one({'id': like['recipe_id']})
+            if recipe == None:
+                print("User liked a Recipe that does not exist!", like['recipe_id'])
+                continue
+            
             tasteProfile = recipe["tasteProfile"]
 
             total_sweetness += tasteProfile["sweetness"]
