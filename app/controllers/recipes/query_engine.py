@@ -192,6 +192,7 @@ class QueryEngine():
             {
                 '$project': {
                     'title': 1, 
+                    'sourceUrl': 1,
                     'id': 1, 
                      'dishTypes': 1, 
                      'diets': 1, 
