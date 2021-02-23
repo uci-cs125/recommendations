@@ -215,8 +215,8 @@ class QueryEngine():
         recipes = self._assemble_nutritional_rankings(profile, context, recipes)
         recipes = self._assemble_taste_rankings(profile["uid"], recipes)
         recommendations = sorted(recipes, \
-                                key = lambda i: i['nutritionalScore']*.8 + \
-                                                i['tasteScore']*.2, \
+                                key = lambda i: i['nutritionalScore']*.5 + \
+                                                i['tasteScore']*.5, \
                                 reverse=True)
         print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.7+recommendations[0]['tasteScore']*.3)
         return recommendations[:100]
