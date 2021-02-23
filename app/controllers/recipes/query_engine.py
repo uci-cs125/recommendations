@@ -105,26 +105,32 @@ class QueryEngine():
         else:
             goal_calories -= 161
         
-        if profile["averageActivity"] == 0:
+        if profile["activityLevel"] == "Sedentary":
             goal_calories *= 1.2
-        elif profile["averageActivity"] == 1:
+        elif profile["activityLevel"] == "Lightly Active":
             goal_calories *= 1.375
-        elif profile["averageActivity"] == 2:
+        elif profile["activityLevel"] == "Moderately Active":
             goal_calories *= 1.55
-        elif profile["averageActivity"] == 3:
+        elif profile["activityLevel"] == "Very Active":
             goal_calories *= 1.725
-        elif profile["averageActivity"] == 4:
+        elif profile["activityLevel"] == "Sedentary":
             goal_calories *= 1.95
 
-        if profile["goal"] == 0:
+        if profile["weeklyTarget"] == "Lose 2.0 lb/week":
             goal_calories -= 1000
-        elif profile["goal"] == 1:
+        elif profile["weeklyTarget"] == "Lose 1.5 lb/week":
+            goal_calories -= 750
+        elif profile["weeklyTarget"]== "Lose 1.0 lb/week":
             goal_calories -= 500
-        elif profile["goal"]== 3:
+        elif profile["weeklyTarget"]== "Lose 0.5 lb/week":
+            goal_calories -= 250
+        elif profile["weeklyTarget"]== "Gain 0.5 lb/week":
+            goal_calories += 250
+        elif profile["weeklyTarget"]== "Gain 1.0 lb/week":
             goal_calories += 500
-        elif profile["goal"]== 4:
-            goal_calories += 1000
-        
+        elif profile["weeklyTarget"]== "Gain 1.5 lb/week":
+            goal_calories += 750
+
         # carbs = 70%, protein = 20%, fat = 10%
         goal_carbs = goal_calories * .7
         goal_protein = goal_calories * .2

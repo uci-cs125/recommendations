@@ -31,16 +31,16 @@ class RecipeResource(Resource):
 
         body = request.get_json(force=True)
 
-        payload = {
+        mockPayload = {
             "profile": {
                 "uid": uid,
                 "age": 21,
-                "sex": 1,               # 0 = male, 1 = female or other
+                "sex": 1,               # Male or Female
                 "heightFeet": 5,
                 "heightInches": 7,
                 "weight": 125,
-                "averageActivity": 1,   #0 = sedentary, 1 = light exercise, 2 = moderate exercise daily, 3 = hard exercise daily, 4 = hard exercise 2+ per day
-                "goal": 2               # 0 = lose 2 per week, 1 = lose 1 per week, 2 = maintain weight, 3 = gain 1 per week, 4 = gain 2 per week
+                "activityLevel": "Sedentary",        # Sedentary, Lightly Active, Moderately Active, Very Active
+                "weeklyTarget": "Maintain my weight" # Maintain my weight, Lose 2.0 lb/week, Lose 1.5 lb/week, Lose 1.0 lb/week, Lose 0.5 lb/week, Gain 2.0 lb/week, Gain 1.5 lb/week, Gain 1.0 lb/week, Gain 0.5 lb/week
             },
             "context": {
                 "mealsEaten": [
@@ -62,7 +62,7 @@ class RecipeResource(Resource):
             }
         }
 
-        if payload["profile"] and payload["context"]:
+        if 'profile' in body and 'context' in body:
             mockPayload = body ## override mock data with real data from Swift frontend JSON bodys
             print("using json body for payload!")
 
