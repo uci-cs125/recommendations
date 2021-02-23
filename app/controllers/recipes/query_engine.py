@@ -100,7 +100,7 @@ class QueryEngine():
         goal_calories = 10 * 0.453592 * profile["weight"] + \
                       6.25 * (30.48 * profile["heightFeet"] + 0.393701 * profile["heightInches"]) - \
                       5 * profile["age"]
-        if profile["sex"] == 0:
+        if profile["sex"] == "male":
             goal_calories += 5
         else:
             goal_calories -= 161

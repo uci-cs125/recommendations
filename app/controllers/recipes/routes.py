@@ -35,7 +35,7 @@ class RecipeResource(Resource):
             "profile": {
                 "uid": uid,
                 "age": 21,
-                "sex": 1,               # Male or Female
+                "sex": "Male",               # Male or Female
                 "heightFeet": 5,
                 "heightInches": 7,
                 "weight": 125,
