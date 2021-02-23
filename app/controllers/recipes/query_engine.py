@@ -182,13 +182,13 @@ class QueryEngine():
             mealType = "dinner"
         # print("meal type:", mealType)
         result = recipesCollection.aggregate([
-            { 
-                '$match': { 
-                    'dishTypes': { 
-                        '$all': [mealType]
-                    }
-                }
-            }, 
+            # { 
+            #     '$match': { 
+            #         'dishTypes': { 
+            #             '$all': [mealType]
+            #         }
+            #     }
+            # }, 
             {
                 '$project': {
                     'title': 1, 
