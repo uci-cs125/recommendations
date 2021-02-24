@@ -211,6 +211,16 @@ class QueryEngine():
                        'aggregateLikes': 1,
                        'tasteProfile': 1,
                        'nutrition': 1,
+                       'carbohydrates': 1,
+                       'netCarbohydrates': 1,
+                       'protein': 1,
+                       'fiber': 1,
+                       'sugar': 1,
+                       'calories': 1,
+                       'fat': 1,
+                       'saturatedFat': 1,
+                       'cholesterol': 1,
+                       'sodium': 1
                     }
                 }
             ])
@@ -223,4 +233,4 @@ class QueryEngine():
                                                 i['tasteScore']*.5, \
                                 reverse=True)
         print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.7+recommendations[0]['tasteScore']*.3)
-        return recommendations[:10]
+        return recommendations[:50]
