@@ -223,4 +223,4 @@ class QueryEngine():
                                                 i['tasteScore']*.5, \
                                 reverse=True)
         print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.7+recommendations[0]['tasteScore']*.3)
-        return recommendations[:100]
+        return recommendations[:10]
