@@ -140,12 +140,15 @@ class QueryEngine():
         total_carbs = 0
         total_protein = 0
         total_fat = 0
-
+        
         for meal in context["mealsEaten"]:
             total_calories += meal["calories"]
-            total_carbs += meal["carbs"] * 4
-            total_protein += meal["protein"] * 4
-            total_fat += meal["fat"] * 9
+            if 'carbs' in meal:
+                total_carbs += meal["carbs"] * 4
+            if 'protein' in meal:
+                total_protein += meal["protein"] * 4
+            if 'fat' in meal:
+                total_fat += meal["fat"] * 9
 
         query_vector = [
             goal_calories - total_calories,
