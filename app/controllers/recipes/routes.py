@@ -29,7 +29,10 @@ class RecipeResource(Resource):
         currHour = 19
         uid = "bl1u5cdYmLb3TrYSFL8ub01qBiW2"
 
-        body = request.get_json(force=True)
+        try:
+            body = request.get_json(force=True)
+        except:
+            body = {}
 
         mockPayload = {
             "profile": {
