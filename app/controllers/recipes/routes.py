@@ -57,7 +57,7 @@ class RecipeResource(Resource):
                         "protein" : 0,
                     }
                 ],
-                "caloriesBurned": 3000,
+                "dailySteps": 0,
                 "currHour": currHour
             }
         }

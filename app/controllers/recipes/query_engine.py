@@ -97,25 +97,40 @@ class QueryEngine():
         goal_protein = 0
         goal_fat = 0
 
-        goal_calories = 10 * 0.453592 * profile["weight"] + \
-                      6.25 * (30.48 * profile["heightFeet"] + 0.393701 * profile["heightInches"]) - \
-                      5 * profile["age"]
-        if profile["gender"] == "male":
-            goal_calories += 5
-        else:
-            goal_calories -= 161
+        # calculate BMR based on information given
+        if profile["weight"] and profile["heightFeet"] and profile["heightInches"] and profile["age"]:
+            # BMR = 10 * weight in kg + 6.25 * height in cm - 5 * age + (5 if male, -161 if female)
+            goal_calories = 10 * 0.453592 * profile["weight"] + \
+                            6.25 * (30.48 * profile["heightFeet"] + 0.393701 * profile["heightInches"]) - \
+                            5 * profile["age"]
+            if profile["gender"] == "male":
+                goal_calories += 5
+            else:
+                goal_calories -= 161
+        else:                                   # if no information given, assume average BMR
+            if profile["gender"] == "male":     # Based on daily consumption of 2500 calories per day
+                goal_calories = 2080
+            else:                               # Based on daily consumption of 2000 calories per day
+                goal_calories = 1666
         
-        if profile["activityLevel"] == "Sedentary":
-            goal_calories *= 1.2
-        elif profile["activityLevel"] == "Lightly Active":
+        # Apply multiplier based on activity level.
+        if profile["activityLevel"] == "Lightly Active":
             goal_calories *= 1.375
         elif profile["activityLevel"] == "Moderately Active":
             goal_calories *= 1.55
         elif profile["activityLevel"] == "Very Active":
             goal_calories *= 1.725
-        elif profile["activityLevel"] == "Sedentary":
-            goal_calories *= 1.95
+        else: # Default = Sedentary
+            goal_calories *= 1.2
 
+        # Add calories based on steps taken today:
+        if profile["weight"] and profile["heightFeet"] and profile["heightInches"]:
+            # daily steps * (calories burned during 1 mile) * (strides per foot) / (feet per mile)
+            goal_calories += context["dailySteps"] * (.57 * profile["weight"]) * (.414 * (profile["heightFeet"]  + profile["heightInches"]/12)) / 5280
+        else:
+            goal_calories += context["dailySteps"] * .04
+
+        # Apply personal goals
         if profile["weeklyTarget"] == "Lose 2.0 lb/week":
             goal_calories -= 1000
         elif profile["weeklyTarget"] == "Lose 1.5 lb/week":
@@ -130,17 +145,19 @@ class QueryEngine():
             goal_calories += 500
         elif profile["weeklyTarget"]== "Gain 1.5 lb/week":
             goal_calories += 750
+        else: # Default = Maintain weight
+            goal_calories = goal_calories
 
-        # carbs = 70%, protein = 20%, fat = 10%
+        # Calculate Macros using suggested percentages: carbs = 70%, protein = 20%, fat = 10%
         goal_carbs = goal_calories * .7
         goal_protein = goal_calories * .2
         goal_fat = goal_calories * .1
 
+        # Calculate total nutrition from today's eaten meals
         total_calories = 0
         total_carbs = 0
         total_protein = 0
         total_fat = 0
-        
         for meal in context["mealsEaten"]:
             total_calories += meal["calories"]
             if 'carbs' in meal:
@@ -150,12 +167,22 @@ class QueryEngine():
             if 'fat' in meal:
                 total_fat += meal["fat"] * 9
 
+        # Subtract goal and total_eaten to get today's remaining nutrition
         query_vector = [
             goal_calories - total_calories,
             goal_carbs - total_carbs,
             goal_protein - total_protein,
             goal_fat - total_fat
         ]
+
+        # Calculate this meal's values by dividing by how many meals left
+        if context["currHour"] < 11:    # Morning: 3 meals left
+            query_vector = [element / 3 for element in query_vector]
+        elif context["currHour"] < 17:  # Afternoon: 2 meals left
+            query_vector = [element / 2 for element in query_vector]
+        else:                           # Default Evening: final meal
+            query_vector = query_vector
+            
         print("constructed user's nutritional query vector:", query_vector)
 
         ### construct recipe vector for all recipes
@@ -168,7 +195,7 @@ class QueryEngine():
             fat = recipe["nutrition"]['nutrients'][8]['amount'] * 9
 
             vec = [calories, carbs, protein, fat]
-            similarity = 1 - spatial.distance.cosine(vec, query_vector)
+            similarity = 1 - spatial.distance.cosine(vec, query_vector, [3, 1, 1, 1]) # weighted with calories taking higher precedence
             recipes[index]['nutritionalScore'] = similarity
         return recipes
 
@@ -232,5 +259,5 @@ class QueryEngine():
                                 key = lambda i: i['nutritionalScore']*.5 + \
                                                 i['tasteScore']*.5, \
                                 reverse=True)
-        print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.7+recommendations[0]['tasteScore']*.3)
+        print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.5+recommendations[0]['tasteScore']*.5)
         return recommendations[:50]
