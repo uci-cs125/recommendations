@@ -3,6 +3,7 @@ import requests
 from . import recipesCollection
 from . import likedCollection
 from scipy import spatial
+from app.utils.calculator import calculate_calories
 
 class QueryEngine():
     def _assemble_taste_rankings(self, user_id, recipes):
@@ -92,36 +93,7 @@ class QueryEngine():
             where 'nutritionalScore' is the cosine similarity between
             nutrients of the meal and the nutrients needed for the user's goal
         '''
-        goal_calories = 0
-        goal_carbs = 0
-        goal_protein = 0
-        goal_fat = 0
-
-        # calculate BMR based on information given
-        if profile["weight"] and profile["heightFeet"] and profile["heightInches"] and profile["age"]:
-            # BMR = 10 * weight in kg + 6.25 * height in cm - 5 * age + (5 if male, -161 if female)
-            goal_calories = 10 * 0.453592 * profile["weight"] + \
-                            6.25 * (30.48 * profile["heightFeet"] + 0.393701 * profile["heightInches"]) - \
-                            5 * profile["age"]
-            if profile["gender"] == "male":
-                goal_calories += 5
-            else:
-                goal_calories -= 161
-        else:                                   # if no information given, assume average BMR
-            if profile["gender"] == "male":     # Based on daily consumption of 2500 calories per day
-                goal_calories = 2080
-            else:                               # Based on daily consumption of 2000 calories per day
-                goal_calories = 1666
-        
-        # Apply multiplier based on activity level.
-        if profile["activityLevel"] == "Lightly Active":
-            goal_calories *= 1.375
-        elif profile["activityLevel"] == "Moderately Active":
-            goal_calories *= 1.55
-        elif profile["activityLevel"] == "Very Active":
-            goal_calories *= 1.725
-        else: # Default = Sedentary
-            goal_calories *= 1.2
+        goal_calories = calculate_calories(profile)
 
         # Add calories based on steps taken today:
         if profile["weight"] and profile["heightFeet"] and profile["heightInches"]:
@@ -129,24 +101,6 @@ class QueryEngine():
             goal_calories += context["dailySteps"] * (.57 * profile["weight"]) * (.414 * (profile["heightFeet"]  + profile["heightInches"]/12)) / 5280
         else:
             goal_calories += context["dailySteps"] * .04
-
-        # Apply personal goals
-        if profile["weeklyTarget"] == "Lose 2.0 lb/week":
-            goal_calories -= 1000
-        elif profile["weeklyTarget"] == "Lose 1.5 lb/week":
-            goal_calories -= 750
-        elif profile["weeklyTarget"]== "Lose 1.0 lb/week":
-            goal_calories -= 500
-        elif profile["weeklyTarget"]== "Lose 0.5 lb/week":
-            goal_calories -= 250
-        elif profile["weeklyTarget"]== "Gain 0.5 lb/week":
-            goal_calories += 250
-        elif profile["weeklyTarget"]== "Gain 1.0 lb/week":
-            goal_calories += 500
-        elif profile["weeklyTarget"]== "Gain 1.5 lb/week":
-            goal_calories += 750
-        else: # Default = Maintain weight
-            goal_calories = goal_calories
 
         # Calculate Macros using suggested percentages: carbs = 70%, protein = 20%, fat = 10%
         goal_carbs = goal_calories * .7
@@ -188,11 +142,10 @@ class QueryEngine():
         ### construct recipe vector for all recipes
         recipe_vectors = []
         for index, recipe in enumerate(recipes):
-
-            calories = recipe["nutrition"]['nutrients'][0]['amount']
-            carbs = recipe["nutrition"]['nutrients'][1]['amount'] * 4
-            protein = recipe["nutrition"]['nutrients'][4]['amount'] * 4
-            fat = recipe["nutrition"]['nutrients'][8]['amount'] * 9
+            calories = recipe["calories"]['amount']
+            carbs = recipe["netCarbohydrates"]['amount'] * 4
+            protein = recipe["protein"]['amount'] * 4
+            fat = recipe["fat"]['amount'] * 9
 
             vec = [calories, carbs, protein, fat]
             similarity = 1 - spatial.distance.cosine(vec, query_vector, [3, 1, 1, 1]) # weighted with calories taking higher precedence
