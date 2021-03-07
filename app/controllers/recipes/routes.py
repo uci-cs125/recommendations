@@ -4,7 +4,7 @@ from bson.json_util import dumps, loads
 from bson import json_util
 from app.utils.encoder import JSONEncoder
 from app.utils.response import craftResp
-from . import recipesCollection
+from . import recipes_collection
 import json
 from .query_engine import QueryEngine
 import pymongo

@@ -3,10 +3,11 @@ import requests
 import os
 import json
 import random
+import pymongo
 
 
-recipesCollection = mongoClient["recommendations"]["recipes"]
-likedCollection = mongoClient["recommendations"]["likes"]
+recipes_collection = mongoClient["recommendations"]["recipes"]
+liked_collection = mongoClient["recommendations"]["likes"]
 class CamelCasify:
     def camelify(self, words):
         s = "".join(word[0].upper() + word[1:].lower() for word in words)
@@ -27,56 +28,66 @@ class DatabasePopulator:
             resp = r.json()
             # print(resp)
             for recipe in resp['results']:
-                result = recipesCollection.find_one({"id": recipe['id']})
+                result = recipes_collection.find_one({"id": recipe['id']})
                 recipeID = recipe['id']
 
                 if result == None:
                     print(f'recipe not found in DB: {recipeID}, appending...')
-                    insertResult = recipesCollection.insert_one(recipe)
+                    insertResult = recipes_collection.insert_one(recipe)
                     print(f'Inserted recipe: {recipeID}')
             offset = offset+100
 
     def populateRecipeFields(self):
-        result = recipesCollection.find({"netCarbohydrates": None}) # only get records that are missing the field, makes this endpoint idempotent.
-        recipes = [r for r in result]
-        print("Populating taste fields...")
+        res = recipes_collection.find({"tags": None}, batch_size=20000, cursor_type=pymongo.cursor.CursorType.EXHAUST)
+        print("got recipes")
+        recipes = [r for r in res]
+        print("got array")
 
         for recipe in recipes:
             # self._populateTasteFieldForRecipe(recipe)
-            self._fixFields(recipe)
+            # print("populating tags field for recipe:")
+            self._populateTagsFieldForRecipe(recipe)
+            # self._fixFields(recipe)
             # self._populateNutritionFieldsForRecipe(recipe)
-            print("Finished populating all fields for recipe: ", recipe['id'])
+            # print("Finished populating all fields for recipe: ", recipe['id'])
 
+    def _populateTagsFieldForRecipe(self, recipe):
+        recipeTags = []
+        for tag in recipe['diets']:
+            recipeTags.append(tag)
+        for tag in recipe['cuisines']:
+            recipeTags.append(tag)
+        for tag in recipe['dishTypes']:
+            recipeTags.append(tag)
+        for tag in recipe['occasions']:
+            recipeTags.append(tag)
+        if recipe['veryHealthy']:
+            recipeTags.append('veryHealthy')
+        if recipe['sustainable']:
+            recipeTags.append('sustainable')
+        if recipe['cheap']:
+            recipeTags.append('cheap')
+
+        res = recipes_collection.update({'id': recipe['id']}, { 
+            '$set': {
+                "tags": recipeTags
+            }
+        })
+        # print("UPDATE res:", res)
 
     def _populateTasteFieldForRecipe(self, recipe):
             r = requests.get(f'https://api.spoonacular.com/recipes/{recipe["id"]}/tasteWidget.json/?apiKey={self.apiToken}')
             resp = r.json()
             
-            res = recipesCollection.update({'id': recipe['id']}, { 
+            res = recipes_collection.update({'id': recipe['id']}, { 
                     '$set': {
                         "tasteProfile": resp
                     }
                 })
-            print("UPDATED taste field for recipe:", recipe['id'], res)
+            # print("UPDATED taste field for recipe:", recipe['id'], res)
 
-    def _fixFields(self, recipe):
-        r = requests.get(f'https://api.spoonacular.com/recipes/{recipe["id"]}/information/?apiKey={self.apiToken}&includeNutrition=true')
-        resp = r.json()
-        # print("resp:", resp)
-
-        carbs = resp['nutrition']['nutrients'][3]
-        netCarbs = resp['nutrition']['nutrients'][4]
-        print("Carbs: ", carbs)
-        print("net carbs:", netCarbs)
-        res = recipesCollection.update({'id': recipe['id']}, { 
-                '$set': {
-                    "netCarbohydrates": netCarbs,
-                    "carbohydrates": carbs,
-                }
-            })
-        
     def _populateNutritionFieldsForRecipe(self, recipe):
-        r = recipesCollection.find({ "id": recipe['id'], "calories": { "$exists": True} })
+        r = recipes_collection.find({ "id": recipe['id'], "calories": { "$exists": True} })
         if len(list(r)) == 0:
             print(f'Document with recipe.id = {recipe["id"]} already contains calories field')
             return
@@ -126,10 +137,12 @@ class DatabasePopulator:
                         shortName: nutrient
                     }
                 }
-            res = recipesCollection.update({'id': recipe['id']}, payload)
+            res = recipes_collection.update({'id': recipe['id']}, payload)
 
 
-dbPopulator = DatabasePopulator("31badbba838549c59b1ca8f72c92d501")
+
+
+
+# dbPopulator = DatabasePopulator("31badbba838549c59b1ca8f72c92d501")
 # dbPopulator.populateRecipes()
-
-dbPopulator.populateRecipeFields()
+# dbPopulator.populateRecipeFields()
