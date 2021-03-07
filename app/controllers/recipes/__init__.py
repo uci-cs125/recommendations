@@ -143,6 +143,6 @@ class DatabasePopulator:
 
 
 
-# dbPopulator = DatabasePopulator("31badbba838549c59b1ca8f72c92d501")
+dbPopulator = DatabasePopulator("31badbba838549c59b1ca8f72c92d501")
 # dbPopulator.populateRecipes()
 # dbPopulator.populateRecipeFields()

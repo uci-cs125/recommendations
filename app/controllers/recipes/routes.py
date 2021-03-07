@@ -68,6 +68,7 @@ class RecipeResource(Resource):
         if 'profile' in body and 'context' in body:
             mockPayload = body ## override mock data with real data from Swift frontend JSON bodys
             print("using json body for payload!")
+            print("payload:", body)
 
         results = queryEngine.query(mockPayload)
         return craftResp(results, request, 200)
