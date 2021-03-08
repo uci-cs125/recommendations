@@ -1,106 +1,169 @@
 
 import requests
-from . import recipesCollection
-from . import likedCollection
+from . import recipes_collection
+from . import liked_collection
 from scipy import spatial
+from threading import Thread, Lock
+import time
+import pymongo
 from app.utils.calculator import calculate_calories
 
 class QueryEngine():
-    def _assemble_taste_rankings(self, user_id, recipes):
-        '''
-            Appends recipes[i]['tasteScore'] to recipes list
-            where 'tasteScore' is the cosine similarity between
-            the flavor profile of the meal and the user's liked recipes
-        '''
-        # init with all zeros
-        for index, recipe in enumerate(recipes):
-            recipes[index]['tasteScore'] = 0
+    def __init__(self):
+        recipes = recipes_collection.find({}, batch_size=20000, cursor_type=pymongo.cursor.CursorType.EXHAUST)
+        print('got recipes')
+        self.recipes = [r for r in recipes]
+        print('assembled all recipes list:', len(self.recipes))
 
-        print("Finding likes by user_id:", user_id)
-        result = likedCollection.find({'user_id': user_id})
-        likes = [like for like in result]
+    def query(self, payload):
+        print(f'received query payload: {payload}')
 
-        if len(likes) == 0:
-            print("User does not have any likes:", user_id)
-            return recipes
+        # rank and sort self.recipes
+        return self._rank_and_sort(payload)
 
-        total_sweetness = 0
-        total_saltiness = 0
-        total_sourness = 0
-        total_bitterness = 0
-        total_savoriness = 0
-        total_fattiness = 0
-        total_spiciness = 0
-        for like in likes:
-            recipe = recipesCollection.find_one({'id': like['recipe_id']})
-            if recipe == None:
-                print("User liked a Recipe that does not exist!", like['recipe_id'])
+    def _rank_and_sort(self, query_payload):
+        user_id = query_payload['profile']['uid']
+
+        ## liked recipes
+        liked_recipe_ids = self._getLikedRecipeIDsByUID(user_id) # get all recipe ids that the user liked
+        print('got user\'s liked recipe ids:', liked_recipe_ids)
+        liked_recipes = recipes_collection.find({'id': {'$in': liked_recipe_ids}}) # get all recipes that the user liked
+        liked_recipes = [recipe for recipe in liked_recipes]
+
+        recipes_liked_taste_vector = self._get_recipes_liked_taste_vector(liked_recipes) # get ideal taste vector
+
+        # tag frequency dictionary
+        tag_freqs = self._generate_tag_frequency_dict(user_id, liked_recipes)
+        
+        print(f'\n\ntags_freqs: {tag_freqs}\n\nrecipes_liked vector: {recipes_liked_taste_vector}\n')
+        ranked_recipes = self._compute_scores(recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload)
+
+        hasLikes = False
+        if len(liked_recipes) > 0:
+            hasLikes = True
+        return self._sort_recipes_by_rank(ranked_recipes, hasLikes) # sort recipes by rank
+
+    def _sort_recipes_by_rank(self, recipes, hasLikes):
+        recommendations_by_nutrition = sorted(recipes, key = lambda i: i['nutritionalScore'], reverse=True)
+
+        if hasLikes:
+            print("user has likes, returning mixture of recommendations by tag, taste, nutrition, and weighted sum.")
+            recommendations_by_tag = sorted(recipes, key = lambda i: i['tagScore'], reverse=True)
+            recommendations_by_taste = sorted(recipes, key = lambda i: i['tasteScore'], reverse=True)
+            recommendations_by_mix = sorted(recipes, 
+                                        key = lambda i: (i['tagScore'] * .15 + i['tasteScore'] * .10 + i['nutritionalScore'] * .75), 
+                                        reverse=True)
+            interweaved = [val for pair in zip(
+                            recommendations_by_tag, 
+                            recommendations_by_taste, 
+                            recommendations_by_nutrition, 
+                            recommendations_by_mix) for val in pair]
+
+            return interweaved[:50]
+        
+        print("[ debug ]: user has no likes, only recommending based on nutritional value.")
+        return recommendations_by_nutrition[:50] # if the user hasn't liked anything, we can only rank by nutritional info.
+
+    def _compute_scores(self, recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload):
+        results = []
+        for index, recipe in enumerate(self.recipes):
+            recipe['tasteScore'] = 0
+            recipe['nutritionalScore'] = 0
+            recipe['tagScore'] = 0
+            if recipe['id'] in liked_recipe_ids:
+                print(f'excluding recipe {recipe["id"]} from recommendations because user liked it recently.')
                 continue
-            
-            tasteProfile = recipe["tasteProfile"]
 
-            total_sweetness += tasteProfile["sweetness"]
-            total_saltiness += tasteProfile["saltiness"]
-            total_sourness += tasteProfile["sourness"]
-            total_bitterness += tasteProfile["bitterness"]
-            total_savoriness += tasteProfile["savoriness"]
-            total_fattiness += tasteProfile["fattiness"]
-            total_spiciness += tasteProfile["spiciness"]
-            print("user liked recipe:", tasteProfile)
-        print("Total sweetness:", total_sweetness)
-        avg_sweetness = total_sweetness/len(likes)
-        avg_saltiness = total_saltiness/len(likes)
-        avg_sourness = total_sourness/len(likes)
-        avg_bitterness = total_bitterness/len(likes)
-        avg_savoriness = total_savoriness/len(likes)
-        avg_fattiness = total_fattiness/len(likes)
-        avg_spiciness = total_spiciness/len(likes)
-        query_vector = [
-            avg_sweetness, 
-            avg_saltiness, 
-            avg_sourness, 
-            avg_bitterness, 
-            avg_savoriness, 
-            avg_fattiness, 
-            avg_spiciness
-        ]
-        print("constructed user's taste query vector:", query_vector)
+            recipe['tasteScore'] = self._compute_taste_score(recipes_liked_taste_vector, recipe)
+            recipe['nutritionalScore'] = self._compute_nutritional_score(query_payload, recipe)
+            recipe['tagScore'] = self._compute_tag_score(tag_freqs, recipe)
+            results.append(recipe)
+        return results
 
-        ### construct recipe vector for all recipes
-        recipe_vectors = []
-        for index, recipe in enumerate(recipes):
-            if 'tasteProfile' not in recipe.keys():
-                print("Recipe is missing tasteProfile field!:", recipe)
-                continue
+    def _getLikedRecipeIDsByUID(self, user_id):
+        result = liked_collection.find({'user_id': user_id})
+        liked_recipe_ids = [like['recipe_id'] for like in result]
+        if len(liked_recipe_ids) == 0:
+            print('User does not have any likes:', user_id)
+            return []
+
+        return liked_recipe_ids
+
+    def _get_recipes_liked_taste_vector(self, liked_recipes):
+        print('_get_recipes_liked_taste_vector::liked_recipes', liked_recipes)
+        total_sweetness, total_saltiness, total_sourness, total_bitterness, \
+        total_savoriness, total_fattiness, total_spiciness = 0,0,0,0,0,0,0
+
+        total_likes = 0
+        for recipe in liked_recipes:
             tasteProfile = recipe['tasteProfile']
+            total_sweetness += tasteProfile['sweetness']
+            total_saltiness += tasteProfile['saltiness']
+            total_sourness += tasteProfile['sourness']
+            total_bitterness += tasteProfile['bitterness']
+            total_savoriness += tasteProfile['savoriness']
+            total_fattiness += tasteProfile['fattiness']
+            total_spiciness += tasteProfile['spiciness']
+            total_likes += 1
 
-            sweetness = tasteProfile['sweetness']
-            saltiness = tasteProfile['saltiness']
-            sourness = tasteProfile['sourness']
-            bitterness = tasteProfile['bitterness']
-            savoriness = tasteProfile['savoriness']
-            fattiness = tasteProfile['fattiness']
-            spiciness = tasteProfile['spiciness']
+        if total_likes == 0:
+            return []
 
-            vec = [sweetness, saltiness, sourness, bitterness, savoriness, fattiness, spiciness]
-            similarity = 1 - spatial.distance.cosine(vec, query_vector)
-            recipes[index]['tasteScore'] = similarity
-        return recipes
+        # return average taste vector
+        return [
+            total_sweetness/total_likes, 
+            total_saltiness/total_likes, 
+            total_sourness/total_likes, 
+            total_bitterness/total_likes, 
+            total_savoriness/total_likes, 
+            total_fattiness/total_likes, 
+            total_spiciness/total_likes
+        ]
 
-    def _assemble_nutritional_rankings(self, profile, context, recipes):
+    def _compute_tag_score(self, tag_freqs, recipe):
+        if len(tag_freqs) == 0:
+            return 0
+
+        total_freqs = 0
+        recipeTagScore = 0
+        for tag in tag_freqs:
+            total_freqs += tag_freqs[tag]
+        # print('tag freqs:', tag_freqs)
+        # print('total_freqs:', total_freqs)
+
+        for tag in tag_freqs:
+            if tag in recipe['tags']:
+                recipeTagScore += (tag_freqs[tag]/total_freqs)
+        # print('computed tag score:', recipeTagScore)
+        return recipeTagScore
+
+    def _compute_taste_score(self, recipes_liked_taste_vector, recipe):
+        if len(recipes_liked_taste_vector) == 0:
+            return 0
+
+        recipe_profile = recipe['tasteProfile']
+        recipe_vector = [recipe_profile['sweetness'], recipe_profile['saltiness'], recipe_profile['sourness'], 
+                            recipe_profile['bitterness'], recipe_profile['savoriness'], recipe_profile['fattiness'], 
+                            recipe_profile['spiciness']]
+        return (1 - spatial.distance.cosine(recipe_vector, recipes_liked_taste_vector))
+
+    def _compute_nutritional_score(self, query_payload, recipe):
         '''
-            Appends recipes[i]['nutritionalScore'] to recipes list
+            Appends nutritionalScore  for the given recipe and query_payload,
             where 'nutritionalScore' is the cosine similarity between
-            nutrients of the meal and the nutrients needed for the user's goal
+            nutrients of the recipe and the nutrients needed for the user's goal
         '''
+        profile = query_payload['profile']
+        context = query_payload['context']
         goal_calories = calculate_calories(profile)
 
         # Add calories based on steps taken today:
-        if profile["weight"] and profile["heightFeet"] and profile["heightInches"]:
+        if 'weight' in profile and 'heightFeet' in profile and 'heightInches' in profile:
             # daily steps * (calories burned during 1 mile) * (strides per foot) / (feet per mile)
-            goal_calories += context["dailySteps"] * (.57 * profile["weight"]) * (.414 * (profile["heightFeet"]  + profile["heightInches"]/12)) / 5280
+            goal_calories += context['dailySteps'] * (.57 * profile['weight']) * (.414 * (profile['heightFeet']  + profile['heightInches']/12)) / 5280
         else:
-            goal_calories += context["dailySteps"] * .04
+            if 'dailySteps' in context:
+                goal_calories += context['dailySteps'] * .04
 
         # Calculate Macros using suggested percentages: carbs = 70%, protein = 20%, fat = 10%
         goal_carbs = goal_calories * .7
@@ -112,14 +175,14 @@ class QueryEngine():
         total_carbs = 0
         total_protein = 0
         total_fat = 0
-        for meal in context["mealsEaten"]:
-            total_calories += meal["calories"]
+        for meal in context['mealsEaten']:
+            total_calories += meal['calories']
             if 'carbs' in meal:
-                total_carbs += meal["carbs"] * 4
+                total_carbs += meal['carbs'] * 4
             if 'protein' in meal:
-                total_protein += meal["protein"] * 4
+                total_protein += meal['protein'] * 4
             if 'fat' in meal:
-                total_fat += meal["fat"] * 9
+                total_fat += meal['fat'] * 9
 
         # Subtract goal and total_eaten to get today's remaining nutrition
         query_vector = [
@@ -130,87 +193,29 @@ class QueryEngine():
         ]
 
         # Calculate this meal's values by dividing by how many meals left
-        if context["currHour"] < 11:    # Morning: 3 meals left
+        if context['currHour'] < 11:    # Morning: 3 meals left
             query_vector = [element / 3 for element in query_vector]
-        elif context["currHour"] < 17:  # Afternoon: 2 meals left
+        elif context['currHour'] < 17:  # Afternoon: 2 meals left
             query_vector = [element / 2 for element in query_vector]
         else:                           # Default Evening: final meal
             query_vector = query_vector
             
-        print("constructed user's nutritional query vector:", query_vector)
+        ### construct recipe vector for the given recipe
+        calories = recipe['calories']['amount']
+        carbs = recipe['netCarbohydrates']['amount'] * 4
+        protein = recipe['protein']['amount'] * 4
+        fat = recipe['fat']['amount'] * 9
 
-        ### construct recipe vector for all recipes
-        recipe_vectors = []
-        for index, recipe in enumerate(recipes):
-            calories = recipe["calories"]['amount']
-            carbs = recipe["netCarbohydrates"]['amount'] * 4
-            protein = recipe["protein"]['amount'] * 4
-            fat = recipe["fat"]['amount'] * 9
+        vec = [calories, carbs, protein, fat]
+        return (1 - spatial.distance.cosine(vec, query_vector, [3, 1, 1, 1])) # weighted with calories taking higher precedence
 
-            vec = [calories, carbs, protein, fat]
-            similarity = 1 - spatial.distance.cosine(vec, query_vector, [3, 1, 1, 1]) # weighted with calories taking higher precedence
-            recipes[index]['nutritionalScore'] = similarity
-        return recipes
-
-    def query(self, payload):
-        profile = payload["profile"]
-        context = payload["context"]
-        # print("QUERY context:", context)
-        mealType = None
-        if context["currHour"] >= 11 and context["currHour"] <= 16:
-            mealType = "brunch"
-        elif context["currHour"] < 11:
-            mealType = "breakfast"
-        elif context["currHour"] > 16:
-            mealType = "dinner"
-        # print("meal type:", mealType)
-        result = recipesCollection.aggregate([
-            # { 
-            #     '$match': { 
-            #         'dishTypes': { 
-            #             '$all': [mealType]
-            #         }
-            #     }
-            # }, 
-            {
-                '$project': {
-                    'title': 1, 
-                    'sourceUrl': 1,
-                    'id': 1, 
-                     'dishTypes': 1, 
-                     'diets': 1, 
-                     'cuisines': 1,
-                      'vegetarian': 1, 
-                      'image': 1,
-                       'vegan': 1, 
-                       'glutenFree': 1, 
-                       'dairyFree': 1, 
-                       'sustainable': 1, 
-                       'cheap': 1, 
-                       'veryHealthy': 1, 
-                       'aggregateLikes': 1,
-                       'tasteProfile': 1,
-                       'nutrition': 1,
-                       'carbohydrates': 1,
-                       'netCarbohydrates': 1,
-                       'protein': 1,
-                       'fiber': 1,
-                       'sugar': 1,
-                       'calories': 1,
-                       'fat': 1,
-                       'saturatedFat': 1,
-                       'cholesterol': 1,
-                       'sodium': 1
-                    }
-                }
-            ])
-        recipes = [doc for doc in result]
-
-        recipes = self._assemble_nutritional_rankings(profile, context, recipes)
-        recipes = self._assemble_taste_rankings(profile["uid"], recipes)
-        recommendations = sorted(recipes, \
-                                key = lambda i: i['nutritionalScore']*.5 + \
-                                                i['tasteScore']*.5, \
-                                reverse=True)
-        print("First recommendation: ", recommendations[0]['id'], " with score of: ", recommendations[0]['nutritionalScore']*.5+recommendations[0]['tasteScore']*.5)
-        return recommendations[:50]
+    def _generate_tag_frequency_dict(self, user_id, liked_recipes):
+        tagFreqs = {}
+        for recipe in liked_recipes:
+            for tag in recipe['tags']:
+                if tag in tagFreqs:
+                    # print(f'recipe ${recipe["id"]} contains tag {tag}')
+                    tagFreqs[tag] += 1
+                else:
+                    tagFreqs[tag] = 1
+        return tagFreqs
