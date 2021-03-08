@@ -36,12 +36,12 @@ class QueryEngine():
         tag_freqs = self._generate_tag_frequency_dict(user_id, liked_recipes)
         
         print(f'\n\ntags_freqs: {tag_freqs}\n\nrecipes_liked vector: {recipes_liked_taste_vector}\n')
-        recipes = self._compute_scores(recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload)
+        ranked_recipes = self._compute_scores(recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload)
 
         hasLikes = False
         if len(liked_recipes) > 0:
             hasLikes = True
-        return self._sort_recipes_by_rank(recipes, hasLikes)
+        return self._sort_recipes_by_rank(ranked_recipes, hasLikes) # sort recipes by rank
 
     def _sort_recipes_by_rank(self, recipes, hasLikes):
         recommendations_by_nutrition = sorted(recipes, key = lambda i: i['nutritionalScore'], reverse=True)
