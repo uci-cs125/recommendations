@@ -36,29 +36,36 @@ class QueryEngine():
         tag_freqs = self._generate_tag_frequency_dict(user_id, liked_recipes)
         
         print(f'\n\ntags_freqs: {tag_freqs}\n\nrecipes_liked vector: {recipes_liked_taste_vector}\n')
-        self._compute_scores(recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload)
+        recipes = self._compute_scores(recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload)
 
         hasLikes = False
         if len(liked_recipes) > 0:
             hasLikes = True
-        return self._sort_recipes_by_rank(hasLikes)
-        
-    def _sort_recipes_by_rank(self, hasLikes):
-        recommendations_by_nutrition = sorted(self.recipes, key = lambda i: i['nutritionalScore'], reverse=True)
+        return self._sort_recipes_by_rank(recipes, hasLikes)
+
+    def _sort_recipes_by_rank(self, recipes, hasLikes):
+        recommendations_by_nutrition = sorted(recipes, key = lambda i: i['nutritionalScore'], reverse=True)
 
         if hasLikes:
-            print("user has likes, returning mixture of recommendations by tag, taste, nutrition, and weighted sum")
-            recommendations_by_tag = sorted(self.recipes, key = lambda i: i['tagScore'], reverse=True)
-            recommendations_by_taste = sorted(self.recipes, key = lambda i: i['tasteScore'], reverse=True)
-            recommendations_by_mix = sorted(self.recipes, 
-                                        key = lambda i: (i['tagScore'] * .25 + i['tasteScore'] * .25 + i['nutritionalScore'] * .5), 
+            print("user has likes, returning mixture of recommendations by tag, taste, nutrition, and weighted sum.")
+            recommendations_by_tag = sorted(recipes, key = lambda i: i['tagScore'], reverse=True)
+            recommendations_by_taste = sorted(recipes, key = lambda i: i['tasteScore'], reverse=True)
+            recommendations_by_mix = sorted(recipes, 
+                                        key = lambda i: (i['tagScore'] * .15 + i['tasteScore'] * .10 + i['nutritionalScore'] * .75), 
                                         reverse=True)
-            return recommendations_by_tag[:10] + recommendations_by_taste[:10] + recommendations_by_nutrition[:10] + recommendations_by_mix[:20]
+            interweaved = [val for pair in zip(
+                            recommendations_by_tag, 
+                            recommendations_by_taste, 
+                            recommendations_by_nutrition, 
+                            recommendations_by_mix) for val in pair]
+
+            return interweaved[:50]
         
         print("[ debug ]: user has no likes, only recommending based on nutritional value.")
         return recommendations_by_nutrition[:50] # if the user hasn't liked anything, we can only rank by nutritional info.
 
     def _compute_scores(self, recipes_liked_taste_vector, liked_recipe_ids, tag_freqs, query_payload):
+        results = []
         for index, recipe in enumerate(self.recipes):
             recipe['tasteScore'] = 0
             recipe['nutritionalScore'] = 0
@@ -67,14 +74,15 @@ class QueryEngine():
                 print(f'excluding recipe {recipe["id"]} from recommendations because user liked it recently.')
                 continue
 
-            self.recipes[index]['tasteScore'] = self._compute_taste_score(recipes_liked_taste_vector, recipe)
-            self.recipes[index]['nutritionalScore'] = self._compute_nutritional_score(query_payload, recipe)
-            self.recipes[index]['tagScore'] = self._compute_tag_score(tag_freqs, recipe)
+            recipe['tasteScore'] = self._compute_taste_score(recipes_liked_taste_vector, recipe)
+            recipe['nutritionalScore'] = self._compute_nutritional_score(query_payload, recipe)
+            recipe['tagScore'] = self._compute_tag_score(tag_freqs, recipe)
+            results.append(recipe)
+        return results
 
     def _getLikedRecipeIDsByUID(self, user_id):
         result = liked_collection.find({'user_id': user_id})
         liked_recipe_ids = [like['recipe_id'] for like in result]
-
         if len(liked_recipe_ids) == 0:
             print('User does not have any likes:', user_id)
             return []
